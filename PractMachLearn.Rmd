@@ -1,0 +1,95 @@
+---
+output: html_document
+---
+# Practical Machine Learning Course Project
+
+## Note to graders
+I had to comment the models that were not the best one since I am running out of time and if I compute all the 5 models again (I did it during writing this code) I will not be able to submit on time.
+
+## Intro
+The goal this project is to build a machine learning algorithm to predict activity quality from activity monitors. The data for this project come from: http://groupware.les.inf.puc-rio.br/har.
+
+## Load, clean, and split data
+```{r echo=TRUE, warning=FALSE}
+# load libraries
+library(lattice)
+library(ggplot2)
+library(caret)
+# load datasets
+train <- read.csv("./pml-training.csv", na.strings=c("NA", ""))
+testAccuracy <- read.csv("./pml-testing.csv" , na.strings=c("NA", ""))
+# remove columns 1 to 7 since not pertinent to the prediction ("X", "user_name", "raw_timestamp_part_1", "raw_timestamp_part_2", "cvtd_timestamp", "new_window", "num_window")
+train <- train[, 8:ncol(train)]
+#test <- test[, 8:ncol(test)]
+# keep only columns without NAs
+train <- train[, colSums(is.na(train)) == 0]
+#test <- test[, colSums(is.na(test)) == 0]
+# split data (canonical 60%-40%)
+split <- createDataPartition(y=train$classe, p=0.6, list=FALSE)
+trainData <- train[split, ]
+testData <- train[-split, ]
+```
+## Building the model
+The following models are built: "rpart" (recursive partitioning), "rf" (random forests), "gbm" (boosted trees), "lda" (linear discriminant analysis), and "nb" (bayesian methods)
+
+```{r echo=TRUE, cache=TRUE, warning=FALSE}
+# load libraries
+library(rpart)
+library(randomForest)
+#library(gbm)
+#library(MASS)
+#library(klaR)
+#M1_rpart <- train(classe ~ .,  method="rpart", data=trainData)
+M2_rf <- train(classe ~ .,  method="rf", data=trainData)
+#M3_gbm <- train(classe ~ .,  method="gbm", data=trainData)
+#M4_lda <- train(classe ~ .,  method="lda", data=trainData)
+#M5_nb <- train(classe ~ .,  method="nb", data=trainData)
+```
+
+## Expected out of sample error and model choice
+The accuracies of the model previously built are computed:
+```{r echo=TRUE, cache=TRUE, warning=FALSE}
+# predictions
+#ACC1_rpart <- predict(M1_rpart, testData)
+ACC2_rf <- predict(M2_rf, testData)
+#ACC3_gbm <- predict(M3_gbm, testData)
+#ACC4_lda <- predict(M4_lda, testData)
+#ACC5_nb <- predict(M5_nb, testData)
+# accuracies
+#M1 <- confusionMatrix(ACC1_rpart, testData$classe)
+M2 <- confusionMatrix(ACC2_rf, testData$classe)
+#M3 <- confusionMatrix(ACC3_gbm, testData$classe)
+#M4 <- confusionMatrix(ACC4_lda, testData$classe)
+#M5 <- confusionMatrix(ACC5_nb, testData$classe)
+```
+The correspondent accuracies are:
+```{r}
+#c(M1$overall[1], M2$overall[1], M3$overall[1], M4$overall[1], M5$overall[1])
+```
+The best model seems to be the random forests based model, with accuracy and 95% CI:
+```{r}
+c(M2$overall[1], M2$overall[3], M2$overall[4])
+```
+
+## Cross validation
+The "rf" model is cross-validated 10-fold:
+```{r}
+crossv <- trainControl(method="repeatedcv", number=10, repeats=3)
+M2_rf_crossv <- train(classe ~ ., method="rf", data=trainData, trControl=crossv)
+```
+
+## Creating the submission files
+```{r}
+submission <- predict(M2_rf_crossv, testAccuracy)
+answers <- as.vector(submission)
+
+pml_write_files = function(x){
+  n = length(x)
+  for(i in 1:n){
+    filename = paste0("problem_id_",i,".txt")
+    write.table(x[i],file=filename,quote=FALSE,row.names=FALSE,col.names=FALSE)
+  }
+}
+
+pml_write_files(answers)
+```
